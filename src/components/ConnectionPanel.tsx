@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import type { ClusterInfo, ConnectionConfig, SaslMechanism } from "../../shared/kafka";
 import { api } from "../lib/api";
-import { Button, Card, Field, Input, Select, Spinner, Textarea } from "./ui";
+import { Button, Card, Field, Input, Select, Spinner, Textarea, Toggle } from "./ui";
 
 const CONNECTION_TYPES = [
   { value: "plaintext", label: "PLAINTEXT — no encryption, no auth" },
@@ -130,6 +130,7 @@ export function ConnectionPanel({
   const [ksKeyPassword, setKsKeyPassword] = useState("");
   const [tsData, setTsData] = useState("");
   const [tsPassword, setTsPassword] = useState("");
+  const [ksEnabled, setKsEnabled] = useState(false);
   const [converting, setConverting] = useState(false);
   const [convertMsg, setConvertMsg] = useState<string | null>(null);
   const [convertError, setConvertError] = useState<string | null>(null);
@@ -335,11 +336,15 @@ export function ConnectionPanel({
               </div>
             </div>
 
+            <Toggle
+              checked={ksEnabled}
+              onChange={setKsEnabled}
+              label="Use Java keystores (JKS / PKCS#12)"
+              hint="Upload keystore/truststore files with passwords — converted to PEM automatically"
+            />
+
+            {ksEnabled ? (
             <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-medium text-zinc-200">Java keystores (JKS / PKCS#12)</p>
-                <span className="text-xs text-zinc-500">Converted to PEM automatically</span>
-              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -421,30 +426,14 @@ export function ConnectionPanel({
                 Truststore certs are added to the CA field above; the keystore fills the client certificate and key.
               </p>
             </div>
+            ) : null}
 
-            <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5">
-              <div>
-                <p className="text-sm font-medium text-zinc-200">Verify broker certificate</p>
-                <p className="text-xs text-zinc-500">
-                  Turn off to skip certificate validation — only for private clusters with untrusted certs
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={form.rejectUnauthorized}
-                onClick={() => set("rejectUnauthorized", !form.rejectUnauthorized)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                  form.rejectUnauthorized ? "bg-amber-500" : "bg-zinc-700"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    form.rejectUnauthorized ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
+            <Toggle
+              checked={form.rejectUnauthorized}
+              onChange={(v) => set("rejectUnauthorized", v)}
+              label="Verify broker certificate"
+              hint="Turn off to skip certificate validation — only for private clusters with untrusted certs"
+            />
           </div>
         ) : null}
 
