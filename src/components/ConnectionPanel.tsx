@@ -60,10 +60,16 @@ function applyConnectionType(f: FormState, type: ConnectionType): Pick<FormState
 
 function PemUploadButton({
   label,
+  accept,
   onFile,
+  onBinary,
 }: {
   label: string;
-  onFile: (content: string) => void;
+  accept?: string;
+  /** Text files (PEM) — read as UTF-8 text. */
+  onFile?: (content: string) => void;
+  /** When set, the file is read as base64 instead of text (for binary keystores). */
+  onBinary?: (dataBase64: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
@@ -71,11 +77,25 @@ function PemUploadButton({
       <input
         ref={inputRef}
         type="file"
-        accept=".pem,.crt,.cer,.key,.p12,.cert,text/plain,application/x-pem-file,application/x-x509-ca-cert"
+        accept={
+          accept ??
+          ".pem,.crt,.cer,.key,.p12,.cert,text/plain,application/x-pem-file,application/x-x509-ca-cert"
+        }
         className="hidden"
         onChange={async (e) => {
           const file = e.target.files?.[0];
-          if (file) onFile(await file.text());
+          if (!file) return;
+          if (onBinary) {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result));
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(file);
+            });
+            onBinary(dataUrl.slice(dataUrl.indexOf(",") + 1));
+          } else if (onFile) {
+            onFile(await file.text());
+          }
           e.target.value = "";
         }}
       />
@@ -105,6 +125,14 @@ export function ConnectionPanel({
   const [form, setForm] = useState<FormState>(() => configToForm(initial));
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; info?: ClusterInfo; error?: string } | null>(null);
+  const [ksData, setKsData] = useState("");
+  const [ksPassword, setKsPassword] = useState("");
+  const [ksKeyPassword, setKsKeyPassword] = useState("");
+  const [tsData, setTsData] = useState("");
+  const [tsPassword, setTsPassword] = useState("");
+  const [converting, setConverting] = useState(false);
+  const [convertMsg, setConvertMsg] = useState<string | null>(null);
+  const [convertError, setConvertError] = useState<string | null>(null);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -127,6 +155,49 @@ export function ConnectionPanel({
         token: form.token,
       },
     };
+  }
+
+  async function handleConvertKeystore() {
+    if (!ksData) return;
+    setConverting(true);
+    setConvertMsg(null);
+    setConvertError(null);
+    try {
+      const res = await api.convertTls({
+        keystore: { dataBase64: ksData, password: ksPassword },
+        keyPassword: ksKeyPassword || undefined,
+      });
+      const ks = res.keystore;
+      if (ks?.key && ks?.cert) {
+        set("sslCert", ks.cert);
+        set("sslKey", ks.key);
+      }
+      if (ks?.ca && !form.sslCa.trim()) set("sslCa", ks.ca);
+      setConvertMsg(`Imported ${ks?.aliases?.join(", ") ?? "keystore"} — client certificate and key filled in above.`);
+    } catch (err) {
+      setConvertError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setConverting(false);
+    }
+  }
+
+  async function handleConvertTruststore() {
+    if (!tsData) return;
+    setConverting(true);
+    setConvertMsg(null);
+    setConvertError(null);
+    try {
+      const res = await api.convertTls({ truststore: { dataBase64: tsData, password: tsPassword } });
+      const ca = res.truststore?.ca;
+      if (ca) {
+        set("sslCa", form.sslCa.trim() ? `${form.sslCa.trim()}\n${ca}` : ca);
+      }
+      setConvertMsg("Truststore imported — CA certificate(s) added above.");
+    } catch (err) {
+      setConvertError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setConverting(false);
+    }
   }
 
   async function handleTest(e: FormEvent) {
@@ -262,6 +333,93 @@ export function ConnectionPanel({
                 />
                 <p className="mt-1 text-xs text-zinc-500">Private key for the client certificate above.</p>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-sm font-medium text-zinc-200">Java keystores (JKS / PKCS#12)</p>
+                <span className="text-xs text-zinc-500">Converted to PEM automatically</span>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                      Keystore (client cert + key)
+                    </span>
+                    <PemUploadButton
+                      label="keystore.jks / .p12"
+                      accept=".jks,.p12,.pfx,.pkcs12,application/octet-stream"
+                      onBinary={setKsData}
+                    />
+                  </div>
+                  <Input
+                    type="password"
+                    value={ksPassword}
+                    onChange={(e) => setKsPassword(e.target.value)}
+                    placeholder="Keystore password"
+                    autoComplete="off"
+                  />
+                  <Input
+                    type="password"
+                    value={ksKeyPassword}
+                    onChange={(e) => setKsKeyPassword(e.target.value)}
+                    placeholder="Key password (optional)"
+                    autoComplete="off"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full text-xs"
+                    onClick={handleConvertKeystore}
+                    disabled={converting || !ksData}
+                    data-testid="convert-keystore"
+                  >
+                    {converting ? <Spinner /> : "Convert keystore → PEM"}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium uppercase tracking-wider text-zinc-400">
+                      Truststore (CA certs)
+                    </span>
+                    <PemUploadButton
+                      label="truststore.jks / .p12"
+                      accept=".jks,.p12,.pfx,.pkcs12,application/octet-stream"
+                      onBinary={setTsData}
+                    />
+                  </div>
+                  <Input
+                    type="password"
+                    value={tsPassword}
+                    onChange={(e) => setTsPassword(e.target.value)}
+                    placeholder="Truststore password"
+                    autoComplete="off"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full text-xs"
+                    onClick={handleConvertTruststore}
+                    disabled={converting || !tsData}
+                    data-testid="convert-truststore"
+                  >
+                    {converting ? <Spinner /> : "Convert truststore → PEM"}
+                  </Button>
+                </div>
+              </div>
+              {convertMsg ? (
+                <p className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                  {convertMsg}
+                </p>
+              ) : null}
+              {convertError ? (
+                <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 break-all font-mono text-xs text-red-300/90">
+                  {convertError}
+                </p>
+              ) : null}
+              <p className="mt-3 text-xs text-zinc-500">
+                Truststore certs are added to the CA field above; the keystore fills the client certificate and key.
+              </p>
             </div>
 
             <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5">

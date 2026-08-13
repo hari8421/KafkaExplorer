@@ -64,6 +64,12 @@ Open the app and click **Connection settings** (or the connection card on first 
 3. **TLS (SSL / SASL_SSL types)** — each PEM field has an **Upload** button, or paste the text:
    - **CA certificate** — upload your `ca.pem`. Required to trust self-signed/private-CA brokers.
    - **Client certificate / key** — only if the broker requires **mTLS**.
+   - **Java keystores** — if your cluster gave you `.jks` / `.p12` files instead of PEM,
+     use the **Java keystores (JKS / PKCS#12)** section: upload your `keystore` and
+     `truststore`, enter their store passwords (and the key password if it differs), and
+     click **Convert → PEM**. The truststore certs are added to the CA field and the
+     keystore fills the client certificate and key automatically — converted on the API
+     server, nothing Java needed.
    - **Verify broker certificate** — leave ON. Turn off only for private clusters with
      untrusted certificates (clearly insecure).
 

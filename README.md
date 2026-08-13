@@ -18,9 +18,10 @@ be explored (or screenshotted) without a Kafka cluster.
 
 ## Features
 
-- **Cluster connections** — plaintext, TLS/SSL (with optional CA / client certificates),
-  and SASL authentication: `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, and `OAUTHBEARER`;
-  disconnect clears the saved connection and returns to the connection form.
+- **Cluster connections** — plaintext, TLS/SSL (with optional CA / client certificates,
+  or **JKS/PKCS#12 keystore + truststore uploads with passwords**, converted to PEM
+  server-side), SASL authentication: `PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`, and
+  `OAUTHBEARER`; disconnect clears the saved connection and returns to the connection form.
 - **Topics** — list all topics with partition and replication-factor counts, filter by name.
 - **Consumer groups** — for any topic, see which consumer groups subscribe to it, their
   state, member count, and **realtime lag** (auto-refreshes every 5s while the tab is

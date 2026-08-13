@@ -16,6 +16,7 @@ import {
   demoSearch,
   demoTopics,
 } from "./demo";
+import { convertKeystore } from "./tls";
 
 const DEMO = process.env.KAFKA_EXPLORER_DEMO === "1";
 
@@ -139,6 +140,48 @@ router.post(
     const config = validateConfig(req.body.config);
     const topic = requireTopic(req.body);
     res.json(await searchMessages(config, topic, validateFilters(req.body.filters)));
+  })
+);
+
+router.post(
+  "/tls/convert",
+  wrap(async (req, res) => {
+    const body = (req.body ?? {}) as {
+      keystore?: { dataBase64?: unknown; password?: unknown };
+      truststore?: { dataBase64?: unknown; password?: unknown };
+      keyPassword?: unknown;
+    };
+    const keyPassword =
+      typeof body.keyPassword === "string" && body.keyPassword.trim()
+        ? body.keyPassword.trim()
+        : undefined;
+
+    const result: { keystore?: ReturnType<typeof convertKeystore>; truststore?: { ca?: string } } = {};
+
+    if (body.keystore?.dataBase64 && typeof body.keystore.password === "string") {
+      const buf = Buffer.from(String(body.keystore.dataBase64), "base64");
+      try {
+        result.keystore = convertKeystore(buf, body.keystore.password, keyPassword);
+      } catch (err) {
+        throw new HttpError(400, err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    if (body.truststore?.dataBase64 && typeof body.truststore.password === "string") {
+      const buf = Buffer.from(String(body.truststore.dataBase64), "base64");
+      try {
+        const conv = convertKeystore(buf, body.truststore.password);
+        result.truststore = { ca: conv.ca ?? conv.cert };
+      } catch (err) {
+        throw new HttpError(400, err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    if (!result.keystore && !result.truststore) {
+      throw new HttpError(400, "Provide a keystore and/or truststore with their passwords.");
+    }
+
+    res.json(result);
   })
 );
 

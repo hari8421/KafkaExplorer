@@ -88,6 +88,25 @@ export interface SearchResult {
   durationMs: number;
 }
 
+export interface TlsConvertPayload {
+  /** Keystore/truststore file contents as base64 */
+  dataBase64: string;
+  /** Store password */
+  password: string;
+}
+
+export interface TlsConvertResult {
+  aliases: string[];
+  ca?: string;
+  cert?: string;
+  key?: string;
+}
+
+export interface TlsConvertResponse {
+  keystore?: TlsConvertResult;
+  truststore?: { ca?: string };
+}
+
 export type ResetPosition = "beginning" | "end" | "timestamp" | "offset";
 
 export interface ResetOffsetsResult {

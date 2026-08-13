@@ -6,6 +6,8 @@ import type {
   PartitionOffsetInfo,
   ResetOffsetsResult,
   SearchResult,
+  TlsConvertPayload,
+  TlsConvertResponse,
   TopicInfo,
 } from "../../shared/kafka";
 
@@ -37,6 +39,9 @@ export const api = {
 
   searchMessages: (config: ConnectionConfig, topic: string, filters: MessageSearchFilters) =>
     post<SearchResult>("/topics/search", { config, topic, filters }),
+
+  convertTls: (body: { keystore?: TlsConvertPayload; truststore?: TlsConvertPayload; keyPassword?: string }) =>
+    post<TlsConvertResponse>("/tls/convert", body),
 
   resetOffsets: (
     config: ConnectionConfig,

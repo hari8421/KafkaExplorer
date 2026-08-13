@@ -146,7 +146,7 @@ p(
     "the ability to reset a group's committed offsets."
 );
 bullets([
-  "Connections support TLS with a CA certificate (ca.pem upload), mTLS client certificates, and SASL over TLS (SASL_SSL).",
+  "Connections support TLS with a CA certificate (ca.pem upload), mTLS client certificates, JKS/PKCS#12 keystore + truststore uploads with passwords (converted to PEM), and SASL over TLS (SASL_SSL).",
   "Disconnect clears the saved connection from the browser and returns to the connection form.",
   "Message search: substring filters on key/value, time range, per-partition filter, sort by time, base64 view, JSON export.",
   "Consumer groups: state, members, live lag with a 5-second auto-refresh, and offset reset to earliest, latest, timestamp, or a custom offset.",
