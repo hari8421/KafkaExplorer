@@ -1,0 +1,43 @@
+{
+  "name": "kafka-explorer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Web UI for exploring Kafka clusters: topics, consumer groups, and message search",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"bun run server:dev\" \"bun run client:dev\"",
+    "server:dev": "tsx watch server/index.ts",
+    "server:start": "tsx server/index.ts",
+    "client:dev": "vite",
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b",
+    "desktop:generate": "bun scripts/embed-assets.ts",
+    "build:desktop": "bun run build && bun run desktop:generate && bun scripts/build-desktop.ts",
+    "capture:screenshots": "bun scripts/capture-screenshots.ts",
+    "generate:pdf": "bun scripts/generate-help-pdf.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "kafkajs": "^2.2.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.15.0",
+    "@types/pdfkit": "^0.17.6",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.1.2",
+    "pdfkit": "^0.19.1",
+    "playwright": "^1.62.1",
+    "tailwindcss": "^4.1.11",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
+  }
+}
