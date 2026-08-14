@@ -2,6 +2,7 @@ import type {
   ClusterInfo,
   ConsumerGroupInfo,
   KafkaMessage,
+  LoadTestPartitionStat,
   PartitionOffsetInfo,
   SearchResult,
   TopicInfo,
@@ -112,5 +113,30 @@ export function demoReset(groupId: string, topic: string, newOffset: number) {
       previousOffset: 20 + i,
       newOffset,
     })),
+  };
+}
+
+export function demoProduce(topic: string, _key: string | null) {
+  return { topic, partition: 2, offset: "101234" };
+}
+
+export function demoLoadTest(topic: string, count: number) {
+  const partitions: Record<string, LoadTestPartitionStat> = {};
+  const per = Math.ceil(count / 6);
+  for (let p = 0; p < 6; p++) {
+    const c = Math.min(per, Math.max(0, count - p * per));
+    if (c <= 0) break;
+    partitions[String(p)] = {
+      firstOffset: String(100_000 + p * 10),
+      lastOffset: String(100_000 + p * 10 + c - 1),
+      count: c,
+    };
+  }
+  return {
+    topic,
+    produced: count,
+    durationMs: 420,
+    messagesPerSecond: Math.round((count / 420) * 1000),
+    partitions,
   };
 }

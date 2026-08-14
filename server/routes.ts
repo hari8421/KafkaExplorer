@@ -1,17 +1,26 @@
 import { Router, type NextFunction, type Request, type Response } from "express";
-import type { ConnectionConfig, MessageSearchFilters } from "../shared/kafka";
+import type {
+  ConnectionConfig,
+  LoadTestSpec,
+  MessageSearchFilters,
+  ProduceMessageInput,
+} from "../shared/kafka";
 import {
   getClusterInfo,
   listConsumerGroups,
   listPartitions,
   listTopics,
+  produceMessage,
   resetOffsets,
+  runLoadTest,
   searchMessages,
 } from "./kafka";
 import {
   demoCluster,
   demoConsumerGroups,
+  demoLoadTest,
   demoPartitions,
+  demoProduce,
   demoReset,
   demoSearch,
   demoTopics,
@@ -80,6 +89,20 @@ function requireTopic(raw: unknown): string {
   const topic = String((raw as { topic?: unknown })?.topic ?? "").trim();
   if (!topic) throw new HttpError(400, "topic is required.");
   return topic;
+}
+
+function sanitizeHeaders(raw: unknown): Record<string, string> | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const entries = Object.entries(raw as Record<string, unknown>).filter(([, v]) => v != null);
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(entries.map(([k, v]) => [k, String(v)]));
+}
+
+function optionalPartition(raw: unknown): number | undefined {
+  if (raw == null || raw === "") return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) throw new HttpError(400, "partition must be a non-negative integer.");
+  return n;
 }
 
 type Handler = (req: Request, res: Response) => Promise<void>;
@@ -182,6 +205,51 @@ router.post(
     }
 
     res.json(result);
+  })
+);
+
+router.post(
+  "/produce",
+  wrap(async (req, res) => {
+    const body = (req.body ?? {}) as Partial<ProduceMessageInput>;
+    const topic = requireTopic(body);
+    const key = typeof body.key === "string" ? body.key : "";
+    const value = typeof body.value === "string" ? body.value : "";
+    if (!key && !value) throw new HttpError(400, "Provide a key and/or a value to produce.");
+    if (DEMO) return void res.json(demoProduce(topic, key || null));
+    const config = validateConfig(req.body.config);
+    res.json(
+      await produceMessage(config, {
+        topic,
+        key: key || undefined,
+        value: value || undefined,
+        partition: optionalPartition(body.partition),
+        headers: sanitizeHeaders(body.headers),
+      })
+    );
+  })
+);
+
+router.post(
+  "/loadtest",
+  wrap(async (req, res) => {
+    const spec = (req.body?.spec ?? {}) as Partial<LoadTestSpec>;
+    const topic = requireTopic(spec);
+    const count = Math.min(Math.max(Math.floor(Number(spec.count)) || 1, 1), 100_000);
+    if (DEMO) return void res.json(demoLoadTest(topic, count));
+    const config = validateConfig(req.body.config);
+    res.json(
+      await runLoadTest(config, {
+        topic,
+        count,
+        keyTemplate: typeof spec.keyTemplate === "string" ? spec.keyTemplate : "",
+        valueTemplate: typeof spec.valueTemplate === "string" ? spec.valueTemplate : "",
+        partition: optionalPartition(spec.partition),
+        headers: sanitizeHeaders(spec.headers),
+        batchSize: spec.batchSize == null ? undefined : Number(spec.batchSize),
+        ratePerSecond: spec.ratePerSecond == null ? undefined : Number(spec.ratePerSecond),
+      })
+    );
   })
 );
 

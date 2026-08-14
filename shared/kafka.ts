@@ -114,3 +114,49 @@ export interface ResetOffsetsResult {
   topic: string;
   partitions: Array<{ partition: number; previousOffset: number; newOffset: number }>;
 }
+
+export interface ProduceMessageInput {
+  topic: string;
+  key?: string;
+  value?: string;
+  partition?: number | null;
+  headers?: Record<string, string>;
+}
+
+export interface ProduceResult {
+  topic: string;
+  partition: number;
+  offset: string;
+}
+
+export interface LoadTestSpec {
+  topic: string;
+  /** Number of messages to produce (1..100_000). */
+  count: number;
+  /** Key template rendered per message with {{placeholders}} (may be empty). */
+  keyTemplate: string;
+  /** Value/payload template rendered per message with {{placeholders}}. */
+  valueTemplate: string;
+  /** Optional fixed partition for every message. */
+  partition?: number | null;
+  /** Optional static headers applied to every message. */
+  headers?: Record<string, string>;
+  /** Messages per send() call (default 100, 1..1000). */
+  batchSize?: number;
+  /** Target throughput in messages/second; 0 = as fast as possible. */
+  ratePerSecond?: number;
+}
+
+export interface LoadTestPartitionStat {
+  firstOffset: string;
+  lastOffset: string;
+  count: number;
+}
+
+export interface LoadTestResult {
+  topic: string;
+  produced: number;
+  durationMs: number;
+  messagesPerSecond: number;
+  partitions: Record<string, LoadTestPartitionStat>;
+}

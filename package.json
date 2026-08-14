@@ -14,6 +14,7 @@
     "desktop:generate": "bun scripts/embed-assets.ts",
     "build:desktop": "bun run build && bun run desktop:generate && bun scripts/build-desktop.ts",
     "capture:screenshots": "bun scripts/capture-screenshots.ts",
+    "capture:demo": "bun scripts/capture-demo-screenshots.ts",
     "generate:pdf": "bun scripts/generate-help-pdf.ts"
   },
   "dependencies": {

@@ -9,12 +9,13 @@ groups, and search messages by key, value, time range, and partition.
   connections (SSL, SASL, mTLS), exploring topics and messages: [`docs/USAGE.md`](docs/USAGE.md)
 - **Executables** — generate and run the Windows/macOS binaries: [`EXECUTABLES.md`](EXECUTABLES.md)
 - **Help PDF** — `docs/Kafka-Explorer-Help.pdf` (regenerate with `bun run generate:pdf`;
-  screenshots in `docs/screenshots/` via `bun run capture:screenshots`)
+  screenshots in `docs/screenshots/` via `bun run capture:screenshots`, or
+  `bun run capture:demo` to auto-run the compiled Linux binary in demo mode)
 
 ## Demo mode
 
-Set `KAFKA_EXPLORER_DEMO=1` to serve sample topics/messages/consumer-groups so the UI can
-be explored (or screenshotted) without a Kafka cluster.
+Set `KAFKA_EXPLORER_DEMO=1` to serve sample topics/messages/consumer-groups (plus produce and
+load-test results) so the UI can be explored (or screenshotted) without a Kafka cluster.
 
 ## Features
 
@@ -31,6 +32,12 @@ be explored (or screenshotted) without a Kafka cluster.
   browsing reads only from the tail of each partition for fast results; filtered searches scan
   from the beginning (capped at 250k messages). Values can be viewed as text or base64, and
   results export to JSON.
+- **Testing (per topic)** — a dedicated Testing tab for workload testing: **produce a single
+  message** (key/value/partition/headers), **generate & post test data** from a sample payload
+  template with changing parameters (`{{i}}`, `{{ts}}`, `{{rand}}`, `{{uuid}}`, …) — preview
+  the first message, then produce up to 100k messages optionally rate-limited — and quick
+  **consumer-group test actions** (reset to earliest / clear lag / custom offset). Marked
+  WRITES: it produces to and rewrites offsets on your cluster.
 
 ## Stack
 

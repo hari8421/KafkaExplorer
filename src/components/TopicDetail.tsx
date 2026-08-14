@@ -3,6 +3,7 @@ import type { ConnectionConfig } from "../../shared/kafka";
 import { Button } from "./ui";
 import { ConsumerGroups } from "./ConsumerGroups";
 import { MessageSearch } from "./MessageSearch";
+import { TestingPanel } from "./TestingPanel";
 
 export function TopicDetail({
   config,
@@ -13,7 +14,7 @@ export function TopicDetail({
   topic: string;
   onBack: () => void;
 }) {
-  const [tab, setTab] = useState<"messages" | "consumers">("messages");
+  const [tab, setTab] = useState<"messages" | "consumers" | "testing">("messages");
 
   return (
     <div className="space-y-4">
@@ -48,13 +49,25 @@ export function TopicDetail({
           >
             Consumer groups
           </button>
+          <button
+            type="button"
+            data-testid="tab-testing"
+            onClick={() => setTab("testing")}
+            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+              tab === "testing" ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"
+            }`}
+          >
+            Testing
+          </button>
         </div>
       </div>
 
       {tab === "messages" ? (
         <MessageSearch config={config} topic={topic} />
-      ) : (
+      ) : tab === "consumers" ? (
         <ConsumerGroups config={config} topic={topic} />
+      ) : (
+        <TestingPanel config={config} topic={topic} />
       )}
     </div>
   );

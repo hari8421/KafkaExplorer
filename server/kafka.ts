@@ -4,16 +4,25 @@ import type {
   ConnectionConfig,
   ConsumerGroupInfo,
   KafkaMessage,
+  LoadTestPartitionStat,
+  LoadTestResult,
+  LoadTestSpec,
   MessageSearchFilters,
   PartitionOffsetInfo,
+  ProduceMessageInput,
+  ProduceResult,
   SearchResult,
   TopicInfo,
 } from "../shared/kafka";
+import { renderTemplate } from "../shared/template";
 
 const MAX_SCAN_MESSAGES = 250_000;
 const SEARCH_TIMEOUT_MS = 60_000;
 const MAX_GROUPS = 150;
 const EPHEMERAL_GROUP_PREFIX = "kafka-explorer-";
+const MAX_LOAD_MESSAGES = 100_000;
+const MAX_BATCH_SIZE = 1_000;
+const MAX_RATE_PER_SECOND = 10_000;
 
 type TopicOffset = { partition: number; offset: string; low?: string; high?: string };
 
@@ -219,6 +228,101 @@ export async function resetOffsets(cfg: ConnectionConfig, input: ResetOffsetsInp
     };
   } finally {
     await admin.disconnect().catch(() => undefined);
+  }
+}
+
+function buildHeaders(headers?: Record<string, string>): Record<string, Buffer> | undefined {
+  if (!headers) return undefined;
+  const entries = Object.entries(headers).filter(([, v]) => v != null);
+  if (entries.length === 0) return undefined;
+  return Object.fromEntries(entries.map(([k, v]) => [k, Buffer.from(String(v))]));
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Produce a single message. Read-only exploration is the norm, but testing needs this. */
+export async function produceMessage(
+  cfg: ConnectionConfig,
+  input: ProduceMessageInput
+): Promise<ProduceResult> {
+  const producer = new Kafka(buildKafkaConfig(cfg)).producer({ allowAutoTopicCreation: false });
+  try {
+    await producer.connect();
+    const [result] = await producer.send({
+      topic: input.topic,
+      messages: [
+        {
+          key: input.key ? input.key : null,
+          value: input.value ?? null,
+          partition: input.partition ?? undefined,
+          headers: buildHeaders(input.headers),
+        },
+      ],
+    });
+    if (!result) throw new Error("Broker returned no produce result.");
+    return { topic: input.topic, partition: result.partition, offset: String(result.baseOffset ?? 0) };
+  } finally {
+    await producer.disconnect().catch(() => undefined);
+  }
+}
+
+/** Generate and produce `count` messages from the given templates (see shared/template.ts). */
+export async function runLoadTest(cfg: ConnectionConfig, spec: LoadTestSpec): Promise<LoadTestResult> {
+  const count = Math.min(Math.max(Math.floor(spec.count) || 1, 1), MAX_LOAD_MESSAGES);
+  const batchSize = Math.min(Math.max(Math.floor(spec.batchSize ?? 100) || 100, 1), MAX_BATCH_SIZE);
+  const rate = Math.min(Math.max(Math.floor(spec.ratePerSecond ?? 0) || 0, 0), MAX_RATE_PER_SECOND);
+
+  const producer = new Kafka(buildKafkaConfig(cfg)).producer({ allowAutoTopicCreation: false });
+  const startedAt = Date.now();
+  const stats = new Map<number, { first: string | null; last: string; count: number }>();
+
+  try {
+    await producer.connect();
+    let produced = 0;
+    while (produced < count) {
+      const n = Math.min(batchSize, count - produced);
+      const messages = Array.from({ length: n }, (_, k) => {
+        const idx = produced + k;
+        const value = renderTemplate(spec.valueTemplate, idx);
+        const key = spec.keyTemplate ? renderTemplate(spec.keyTemplate, idx) : null;
+        return {
+          key,
+          value,
+          partition: spec.partition ?? undefined,
+          headers: buildHeaders(spec.headers),
+        };
+      });
+
+      const results = await producer.send({ topic: spec.topic, messages });
+      for (const r of results) {
+        const stat = stats.get(r.partition) ?? { first: null, last: "0", count: 0 };
+        if (stat.first === null) stat.first = String(r.baseOffset ?? 0);
+        stat.last = String(r.baseOffset ?? 0);
+        stat.count += 1;
+        stats.set(r.partition, stat);
+      }
+      produced += n;
+
+      if (rate > 0) {
+        const pauseMs = Math.round((n / rate) * 1000);
+        if (pauseMs > 0) await sleep(pauseMs);
+      }
+    }
+
+    const durationMs = Date.now() - startedAt;
+    const partitions: Record<string, LoadTestPartitionStat> = {};
+    for (const [p, s] of stats) {
+      partitions[String(p)] = { firstOffset: s.first ?? "0", lastOffset: s.last, count: s.count };
+    }
+    return {
+      topic: spec.topic,
+      produced,
+      durationMs,
+      messagesPerSecond: durationMs > 0 ? Math.round((produced / durationMs) * 1000) : produced,
+      partitions,
+    };
+  } finally {
+    await producer.disconnect().catch(() => undefined);
   }
 }
 

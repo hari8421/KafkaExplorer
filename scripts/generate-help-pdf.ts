@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync } from "node:fs";
+import { createWriteStream, existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import PDFDocument from "pdfkit";
 
@@ -78,15 +78,22 @@ function bullets(items: string[]) {
   doc.moveDown(0.4);
 }
 
+function pngSize(filePath: string): { width: number; height: number } {
+  const buf = readFileSync(filePath);
+  if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return { width: 1440, height: 900 };
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
 function image(file: string, label: string) {
   const filePath = path.join(SHOTS, file);
   if (!existsSync(filePath)) {
     p(`(missing screenshot: ${file})`);
     return;
   }
+  const { width, height } = pngSize(filePath);
   const imgW = Math.min(W, 430);
-  // Screenshots are captured at 1440x900; preserve that aspect ratio.
-  const imgH = imgW * (900 / 1440);
+  // Preserve each screenshot's own aspect ratio (full-page shots are taller than 1440x900).
+  const imgH = imgW * (height / width);
   ensureSpace(imgH + 40);
   doc.moveDown(0.4);
   doc.image(filePath, doc.page.margins.left + (W - imgW) / 2, doc.y, { width: imgW });
@@ -114,7 +121,7 @@ doc
   .font("Helvetica")
   .fontSize(11)
   .text(
-    "Browse topics · search messages · inspect consumer groups and live lag · reset offsets",
+    "Browse topics · search messages · inspect consumer groups and live lag · reset offsets · produce & load-test messages",
     doc.page.margins.left,
     160,
     { width: W }
@@ -134,6 +141,7 @@ bullets([
   "Exploring topics",
   "Searching messages",
   "Consumer groups — realtime lag and resetting offsets",
+  "Producing & load testing (Testing tab)",
   "Security & troubleshooting",
 ]);
 
@@ -222,6 +230,31 @@ p(
     "the new position on their next fetch — consumption may duplicate or skip messages."
 );
 image("06-reset-offsets.png", "Reset offsets dialog");
+
+// ---------- Producing & load testing ----------
+h1("Producing & load testing");
+p(
+  "Each topic has a Testing tab (marked WRITES) for testing your workload against the cluster. It produces " +
+    "messages and rewrites committed offsets, so use it with care on shared environments."
+);
+image("07-testing.png", "Testing tab: produce a message, generate load-test data, and reset group offsets");
+h2("Produce a message");
+p(
+  "Send a single message to the topic with an optional key, partition, and headers. The result shows the partition " +
+    "and offset the broker assigned."
+);
+h2("Generate & post test data (load test)");
+p(
+  "Paste a sample payload and swap in placeholders so parameters change per message: {{i}} (message index), " +
+    "{{ts}} / {{ts_iso}} (generation time), {{uuid}} (random UUID), {{rand}} / {{rand:N}} (random number), " +
+    "{{randstr:N}} (random string). Preview the first message before sending, then post up to 100,000 messages — " +
+    "optionally rate-limited — and review duration, throughput, and per-partition first/last offsets."
+);
+h2("Consumer group test actions");
+p(
+  "Pick a group subscribed to the topic and reset it to the earliest offset, clear its lag (reset to latest), or " +
+    "set a custom offset (clamped to the log range) — handy for replaying messages during testing."
+);
 
 // ---------- Security / troubleshooting ----------
 h1("Security & troubleshooting");

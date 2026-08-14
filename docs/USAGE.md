@@ -133,11 +133,42 @@ committed offset). The list is capped at 150 groups.
   the log range). The dialog shows the previous and new offset per partition. Active
   consumers pick up the new position on their next fetch.
 
+### Testing (per topic) — produce & load test
+
+The **Testing** tab writes to your cluster, so it is labeled **WRITES** — use it with care
+on shared environments. It offers three tools:
+
+1. **Produce a message** — send one message with an optional key, value, partition, and
+   headers. The result shows the partition and offset the broker assigned.
+
+2. **Generate & post test data (load test)** — paste a sample payload and swap in
+   placeholders so parameters change per message:
+
+   | Placeholder    | Replaced with                                   |
+   | -------------- | ----------------------------------------------- |
+   | `{{i}}`        | message index (0-based)                         |
+   | `{{ts}}`       | epoch milliseconds at generation time           |
+   | `{{ts_iso}}`   | ISO-8601 timestamp                              |
+   | `{{uuid}}`     | random UUID v4                                  |
+   | `{{rand}}`     | random integer 0–999999                         |
+   | `{{rand:100}}` | random integer 0–99                             |
+   | `{{randstr:8}}`| random alphanumeric string of length 8          |
+
+   Set the **message count** (up to 100,000), an optional **rate** (messages/second, empty =
+   as fast as possible), an optional **partition** (default round-robin), and static
+   **headers**. **Preview first message** renders message #0 locally before you send anything;
+   **Generate & post** produces in batches (default 100) and reports duration, throughput, and
+   per-partition first/last offsets. The topic must already exist — auto-creation is disabled.
+
+3. **Consumer group test actions** — pick a group subscribed to the topic and **Reset to
+   earliest**, **Clear lag (reset to latest)**, or **Set custom offset** (clamped to the log
+   range). Same behavior and warnings as the Consumer groups tab.
+
 ### Demo mode (no cluster needed)
 
 Set `KAFKA_EXPLORER_DEMO=1` and the API serves sample topics, messages, consumer
-groups, and offset resets — useful for trying the UI or capturing screenshots without a
-Kafka cluster.
+groups, offset resets, and produce/load-test results — useful for trying the UI or
+capturing screenshots without a Kafka cluster.
 
 ### Help PDF & screenshots
 
@@ -152,5 +183,6 @@ Kafka cluster.
 | Certificate error (self-signed) | Upload the broker CA in the TLS section, or temporarily turn off "Verify broker certificate". |
 | `SASL Authentication failed` | Wrong mechanism or credentials. SCRAM-SHA-512 vs 256 matters — check the broker's `listeners`/SASL config. |
 | `No leader for topic-partition` | Topic exists but has no live leader — check broker health. |
+| `The topic does not exist` (produce/load test) | Auto-creation is disabled — create the topic first (e.g. `kafka-topics --create`). |
 | Search returns nothing on a big topic | With newest-first and no filters only the tail is read; add a time range or use oldest-first + filters. |
 | Port 8787 already in use | Set `KAFKA_EXPLORER_API_PORT` (or restart the other process). |

@@ -67,6 +67,24 @@ async function main() {
   await page.getByTestId("confirm-reset").waitFor({ state: "visible" });
   await shot(page, "06-reset-offsets.png", "Reset offsets dialog");
 
+  // --- 7. Testing tab: produce + load test + group reset helpers ---
+  await page.getByTestId("confirm-reset").click();
+  await page.getByRole("button", { name: "Done" }).waitFor({ state: "visible" });
+  await page.getByRole("button", { name: "Done" }).click();
+  await page.getByTestId("tab-testing").click();
+  await page.getByTestId("produce-key").fill("ord-90001");
+  await page.getByTestId("produce-value").fill('{"orderId":"ord-90001","qty":1,"status":"paid"}');
+  await page.getByTestId("produce-button").click();
+  await page.getByTestId("produce-result").waitFor({ state: "visible" });
+  await page.getByTestId("loadtest-preview-button").click();
+  await page.getByTestId("loadtest-start").click();
+  await page.getByTestId("loadtest-result").waitFor({ state: "visible" });
+  await page.waitForTimeout(400);
+  const testingShot = path.join(OUT_DIR, "07-testing.png");
+  await page.screenshot({ path: testingShot, fullPage: true });
+  shots.push({ file: "07-testing.png", label: "Testing tab (produce + load test)" });
+  console.log(`Captured ${testingShot}`);
+
   await browser.close();
 
   console.log(`\n${shots.length} screenshots written to ${OUT_DIR}:`);

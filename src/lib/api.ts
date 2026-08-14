@@ -2,8 +2,11 @@ import type {
   ClusterInfo,
   ConnectionConfig,
   ConsumerGroupInfo,
+  LoadTestResult,
+  LoadTestSpec,
   MessageSearchFilters,
   PartitionOffsetInfo,
+  ProduceResult,
   ResetOffsetsResult,
   SearchResult,
   TlsConvertPayload,
@@ -49,4 +52,12 @@ export const api = {
     groupId: string,
     body: { position: "beginning" | "end" | "timestamp" | "offset"; timestamp?: number | null; offset?: number | null }
   ) => post<ResetOffsetsResult>("/topics/offsets/reset", { config, topic, groupId, ...body }),
+
+  produceMessage: (
+    config: ConnectionConfig,
+    topic: string,
+    body: { key?: string; value?: string; partition?: number | null; headers?: Record<string, string> }
+  ) => post<ProduceResult>("/produce", { config, topic, ...body }),
+
+  runLoadTest: (config: ConnectionConfig, spec: LoadTestSpec) => post<LoadTestResult>("/loadtest", { config, spec }),
 };
