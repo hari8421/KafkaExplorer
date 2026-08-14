@@ -1,0 +1,45 @@
+name: Build executables & release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach binaries to (e.g. v1.0.0). Leave empty to only build."
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build desktop executables
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build executables (all platforms)
+        run: bun run build:desktop
+
+      - name: Upload binaries to release
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: |
+            bin/kafka-explorer-windows-x64.exe
+            bin/kafka-explorer-macos-arm64
+            bin/kafka-explorer-macos-x64
+            bin/kafka-explorer-linux-x64
+          generate_release_notes: true

@@ -69,6 +69,10 @@ or Docker needed on the target machine.
 **Full instructions** (generate, run, per-platform notes, troubleshooting):
 [`EXECUTABLES.md`](EXECUTABLES.md)
 
+GitHub Actions can build the executables and attach them to a release automatically — push
+a `v*` tag (e.g. `v1.0.0`) and `.github/workflows/release.yml` does the rest. A separate
+`.github/workflows/ci.yml` typechecks and builds on every push/PR.
+
 ## Production
 
 The build (`bun run build`) produces a static frontend in `dist/` plus a Node/Express API.

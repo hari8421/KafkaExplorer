@@ -41,6 +41,27 @@ Binaries are written to `bin/`:
 If you change the frontend or backend code, just re-run `bun run build:desktop` to
 regenerate all executables. `bin/` is git-ignored.
 
+## Build & release with GitHub Actions
+
+The repo includes `.github/workflows/release.yml`, which builds all four executables on a
+GitHub runner (Bun cross-compiles every platform from a single Ubuntu runner) and attaches
+them to a GitHub Release:
+
+- **On a version tag** — push a tag and the binaries are built and uploaded to a new
+  release for that tag (release notes generated automatically):
+
+  ```bash
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+
+- **Manually** — GitHub → **Actions** → **Build executables & release** → **Run workflow**.
+  Enter a tag (e.g. `v1.0.0`) to attach the binaries to that release, or leave it empty to
+  run the build without uploading.
+
+A separate `.github/workflows/ci.yml` runs the typecheck and frontend build on every push
+and pull request.
+
 ## Run the executables
 
 Double-click the file (or run it from a terminal — see below). It starts the app and
